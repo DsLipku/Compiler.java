@@ -1,0 +1,150 @@
+//#include<stdio.h>
+const int a_long_var=2*(+-+1)-3*-3-+2/-+-1;
+const int b_long_var=-6,c_long_var=+12,d_long_var=+-+-+-1001;
+int StrangeVar=5*a_long_var+a_long_var*(-1-+2)-+-a_long_var%2, Very5trangE_var[5]={a_long_var,b_long_var,c_long_var,d_long_var,+123};
+int array2[2][3]={{a_long_var*2,b_long_var/2,6%3},{2-2*3,0,c_long_var-3}};
+int templist[5]={1,2,3,4,5};
+const int const_array[2][2]={{12,64},{114514,1919810}},place[5]={2,3,4,0,1};
+int t_list[1000],temp,count=0;
+/*
+int getint(){ int n; scanf("%d",&n); return n; }
+*/
+int gcd(int a,int b){
+	int c;
+	while(a%b!=0){
+		c=a%b;
+		a=b;b=c;
+		}
+	return b;
+	}
+void doSomething(int in[][1000]){
+	int i=0;
+	int t1=gcd(gcd(const_array[0][0],const_array[0][1]),gcd(const_array[1][0],const_array[1][1]));
+	int t2=(array2[0][0]-array2[1][0])*(array2[0][1]-array2[1][1])*(array2[0][2]-array2[1][2]);
+	int t3=StrangeVar+Very5trangE_var[place[0]]-Very5trangE_var[place[place[0]]]+Very5trangE_var[place[place[place[0]]]]-Very5trangE_var[place[place[place[place[0]]]]]+Very5trangE_var[place[place[place[place[place[0]]]]]];
+	while(temp>i){
+		in[1][i]=(in[0][i]*t1%t2-t3)*templist[i%5];
+		i=i+1;
+		}
+	}
+void resetTemp(){
+	temp=0;;;;
+	temp+1*array2[2][2];
+	{}
+	;
+	{;}
+	return;
+	}
+void setTemp(int t){
+	temp=t;
+	/*
+	temp=1000;
+	printf("error\n");
+	*/
+	}
+
+void Sort(int list[],int start,int end){//MergeSort
+	int p,q,mid,i=0;
+	if(start==end){return;}
+	mid=start+(end-start)/2;
+	Sort(list,start,mid);
+	Sort(list,mid+1,end);
+	p=start;q=mid+1;
+	while(p<=mid&&q<=end){
+		if(list[p]<list[q]){
+			t_list[i]=list[p];
+			i=i+1;
+			p=p+1;
+			}
+		else{
+			t_list[i]=list[q];
+			i=i+1;
+			q=q+1;
+			}
+		}
+	while(mid>=p){t_list[i]=list[p];i=i+1;p=p+1;}
+	while(end>=q){t_list[i]=list[q];i=i+1;q=q+1;}
+	while(i-1>=0){
+		i=i-1;
+		q=q-1;
+		list[q]=t_list[i];
+		}
+	}
+
+int iszero(int temp){
+	if(temp)
+		return 0;
+	return 1;
+	}
+
+int active(int in){
+	printf("actived by %d\n",in);//10
+	count=count+1;
+	return 1;
+	}
+int trueOrFalse(int in){
+	int a1=in%2,a2=(in/2)%2,a3=(in/4)%2,a4=(in/16)%2,a5=(in/32)%2,a6=(in/64)%2,a7=(in/128)%2,a8=(in/256)%2;
+	if(a1||a2==0==a3&&a4!=a5||a6||!a7&&a8){
+		return 1;
+		}
+	return 0;
+	}
+int trueOrFalse2(int in){
+	int a1=in%2,a2=(in/2)%2,a3=(in/4)%2,a4=(in/16)%2,a5=(in/32)%2,a6=(in/64)%2,a7=(in/128)%2,a8=(in/256)%2;
+	if(a1&&active(1)){
+		if(a2||!active(2)){
+			if(!a3||a4&&a5||a6&&a7>a8){
+				return 1;
+				}
+			}
+		}
+	return 0;
+	}
+
+int main(){
+	int i=0;
+	int j=0;
+	int list[2][1000];
+	int justfortemp;
+	printf("20373815\n");//1
+	resetTemp();
+	printf("%d\n",iszero(temp));//2
+	justfortemp=getint();
+	setTemp(justfortemp);
+	{
+		int temp=-100;
+		printf("%d\n",temp);//3
+		}
+	while(i<temp){
+		list[0][i]=getint();
+		i=i+1;
+		}
+	Sort(list[0],0,temp-1);
+	doSomething(list);
+	while(1){
+		i=0;
+		while(i<temp){
+			printf("%d ",list[j][i]);//4
+			i=i+1;
+			}
+		printf("\n");//5
+		if(j==0)
+			j=1;
+		else
+			break;
+	}
+	i=0;
+	while(i<64){
+		printf("%d",trueOrFalse(i));//6
+		i=i+1;
+		}
+	printf("\n");//7
+	i=0;
+	while(i<64){
+		if(trueOrFalse2(i)==0){i=i+1;continue;}
+		printf("%d\n",i);//8
+		i=i+1;
+		}
+	printf("Count:%d\n",count);//9
+	return 0;
+	}

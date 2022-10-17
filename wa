@@ -1,0 +1,835 @@
+import java.io.*;
+import java.util.ArrayList;
+
+public class Compiler {
+    public static void main(String[] args) throws IOException {
+        String filepath = "testfile.txt";
+        ArrayList<TokenTable> ttb = new ArrayList<>();
+        Lexer lexer = new Lexer(filepath,ttb);
+        lexer.analyse();
+        lexer.output();
+        Parse parse = new Parse(ttb);
+        parse.analyse();
+    }
+
+}
+class Lexer{
+    File testfile;
+
+    ArrayList<TokenTable> ttb;
+    char sym;
+    int line=0;
+    boolean InStr = false;
+    boolean InSingleNote = false;
+    boolean InMulNote = false;
+    boolean isIdent = false;
+    Lexer(String filepath,ArrayList<TokenTable> ttb) throws FileNotFoundException {
+        testfile = new File(filepath);
+        this.ttb = ttb;
+    }
+    void analyse() throws IOException {
+        BufferedReader reader = new BufferedReader(new FileReader(testfile));
+        String tempLine;
+        while ((tempLine = reader.readLine()) != null) {
+            int length = tempLine.length();
+            line++;
+            for (int i = 0; i < length; i++) {
+                sym = tempLine.charAt(i);
+                if (InSingleNote) {
+                    InSingleNote = false;
+                    break;
+                } else if (InMulNote) {
+                  if (sym == '*') {
+                      if(length>(i+1))
+                          if(tempLine.charAt(i+1)=='/') {
+                              InMulNote = false;
+                              i++;
+                              continue;
+                          }
+                    } else
+                        continue;
+                } else if(InStr){
+                    StringBuilder token = new StringBuilder();
+                    while(i<length&&InStr) {
+                        sym=tempLine.charAt(i);
+                        token.append(sym);
+                        if(sym=='"')
+                            InStr = false;
+                        i++;
+                    }
+                    ttb.add(new TokenTable("STRCON","\""+token.toString()));
+                    i--;
+                }else {
+                    if (sym == '\n') {
+                        line++;
+                        break;
+                    } else if (sym == ' ' || sym == '\t') {
+                        continue;
+                    } else if (sym == '/') {
+                        if(tempLine.length()>(i+1)) {
+                            if (tempLine.charAt(i+1) == '/') {
+                                InSingleNote = true;
+                            } else if (tempLine.charAt(i+1) == '*') {
+                                InMulNote = true;
+                                i++;
+                            } else
+                                ttb.add(new TokenTable("DIV", "/"));
+                        }
+                    } else if (sym=='"') {
+                        InStr=true;
+                    } else if (Character.isLowerCase(sym)|| Character.isUpperCase(sym)||sym=='_') {
+                        StringBuilder token = new StringBuilder();
+                        while((i<length)&&(Character.isLowerCase(tempLine.charAt(i))|| Character.isUpperCase(tempLine.charAt(i))||Character.isDigit(tempLine.charAt(i))||tempLine.charAt(i)=='_')){
+                            if(Character.isDigit(tempLine.charAt(i)))
+                                isIdent = true;
+                            sym=tempLine.charAt(i);
+                            token.append(sym);
+                            i++;
+                        }
+                        reserved(token);
+                        if(isIdent) {
+                            ttb.add(new TokenTable("IDENFR",token.toString()));
+                            isIdent = false;
+                        }
+                        i--;
+                    }
+                    else if(Character.isDigit(sym)){
+                        StringBuilder token = new StringBuilder();
+                        while((i<length)&&Character.isDigit(tempLine.charAt(i)))
+                        {
+                            sym=tempLine.charAt(i);
+                            token.append(sym);
+                            i++;
+                        }
+                        ttb.add(new TokenTable("INTCON",token.toString()));
+                        i--;
+                    }   else if (sym=='!') {
+                        if(i+1<length&&tempLine.charAt(i+1)=='=') {
+                            ttb.add(new TokenTable("NEQ", "!="));
+                            i++;
+                        }
+                        else
+                            ttb.add(new TokenTable("NOT","!"));
+                    }
+                    else if(sym=='|'){
+                        if(i+1<length&&tempLine.charAt(i+1)=='|') {
+                            ttb.add(new TokenTable("OR", "||"));
+                            i++;
+                        }
+                        else
+                            error(line);
+                    }
+                    else if(sym=='&'){
+                        if(i+1<length&&tempLine.charAt(i+1)=='&') {
+                            ttb.add(new TokenTable("AND", "&&"));
+                            i++;
+                        }
+                        else
+                            error(line);
+                    }
+                    else if(sym=='<'){
+                        if(i+1<length&&tempLine.charAt(i+1)=='=') {
+                            ttb.add(new TokenTable("LEQ", "<="));
+                            i++;
+                        }
+                        else
+                            ttb.add(new TokenTable("LSS","<"));
+                    }
+                    else if(sym=='>'){
+                        if(i+1<length&&tempLine.charAt(i+1)=='=') {
+                            ttb.add(new TokenTable("GEQ", ">="));
+                            i++;
+                        }
+                        else
+                            ttb.add(new TokenTable("GRE",">"));
+                    }
+                    else if(sym=='='){
+                        if(i+1<length&&tempLine.charAt(i+1)=='=') {
+                            ttb.add(new TokenTable("EQL", "=="));
+                            i++;
+                        }
+                        else
+                            ttb.add(new TokenTable("ASSIGN","="));
+                    }
+                    else{
+                            char str = sym;
+                            if(str == '+') ttb.add(new TokenTable("PLUS","+"));
+                            else if(str == '-') ttb.add(new TokenTable("MINU","-"));
+                            else if(str == '*') ttb.add(new TokenTable("MULT","*"));
+                            else if(str == '%') ttb.add(new TokenTable("MOD","%"));
+                            else if(str == ';') ttb.add(new TokenTable("SEMICN",";"));
+                            else if(str == ',') ttb.add(new TokenTable("COMMA",","));
+                            else if(str == '[') ttb.add(new TokenTable("LBRACK","["));
+                            else if(str == ']') ttb.add(new TokenTable("RBRACK","]"));
+                            else if(str == '(') ttb.add(new TokenTable("LPARENT","("));
+                            else if(str == ')') ttb.add(new TokenTable("RPARENT",")"));
+                            else if(str == '{') ttb.add(new TokenTable("LBRACE","{"));
+                            else if(str == '}') ttb.add(new TokenTable("RBRACE","}"));
+                        }
+                    }
+                }
+            }
+        reader.close();
+        }
+    void output() throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(new File("output.txt")));
+        for (TokenTable i:ttb
+        ) {
+            writer.write(i.category+" "+i.name+"\n");
+        }
+        writer.close();
+    }
+    void reserved(StringBuilder token)
+    {
+        String str = token.toString();
+        if(str.equals("main")) ttb.add(new TokenTable("MAINTK","main"));
+        else if(str.equals("const")) ttb.add(new TokenTable("CONSTTK","const"));
+        else if(str.equals("int")) ttb.add(new TokenTable("INTTK","int"));
+        else if(str.equals("if")) ttb.add(new TokenTable("IFTK","if"));
+        else if(str.equals("else")) ttb.add(new TokenTable("ELSETK","else"));
+        else if(str.equals("break")) ttb.add(new TokenTable("BREAKTK","break"));
+        else if(str.equals("continue")) ttb.add(new TokenTable("CONTINUETK","continue"));
+        else if(str.equals("while")) ttb.add(new TokenTable("WHILETK","while"));
+        else if(str.equals("getint")) ttb.add(new TokenTable("GETINTTK","getint"));
+        else if(str.equals("printf")) ttb.add(new TokenTable("PRINTFTK","printf"));
+        else if(str.equals("return")) ttb.add(new TokenTable("RETURNTK","return"));
+        else if(str.equals("void")) ttb.add(new TokenTable("VOIDTK","void"));
+        else isIdent = true;
+    }
+    void error(int line){
+        writer.write("error in line "+line);
+    }
+}
+class TokenTable{
+    String name;
+    String category;
+    TokenTable(String category,String name)
+    {
+        this.name = name;
+        this.category =category;
+    }
+}
+
+class Parse{
+    ArrayList<TokenTable> ttb;
+    String sym;
+    int index=0;
+    Parse(ArrayList<TokenTable> ttb){
+        this.ttb = ttb;
+    }
+    void nextsym() throws IndexOutOfBoundsException{
+            TokenTable temp;
+            String name;
+            temp= ttb.get(index++);
+            name = temp.name;
+            sym = temp.category;
+            writer.write(sym+" "+name);
+    }
+    String nowsym() throws IndexOutOfBoundsException{
+        return ttb.get(index).category;
+    }
+    String latersym() throws IndexOutOfBoundsException{
+        return ttb.get(index+1).category;
+    }
+
+    void error(String fname) {
+        writer.write("error in "+fname);
+
+    }
+    void analyse(){
+        nextsym();
+        CompUnit();
+    }
+    void CompUnit(){
+        while(sym.equals("CONSTTK")){
+            Decl();
+            nextsym();
+        }
+        while(sym.equals("INTTK")&&nowsym().equals("IDENFR")&&!latersym().equals("LPARENT"))
+        {
+            Decl();
+            nextsym();
+        }
+        while((sym.equals("INTTK")||sym.equals("VOIDTK"))&&nowsym().equals("IDENFR")&&latersym().equals("LPARENT")){
+            FuncDef();
+            nextsym();
+        }
+        if(sym.equals("INTTK")&&nowsym().equals("MAINTK")&&latersym().equals("LPARENT"))
+            MainFuncDef();
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        writer.write("<CompUnit>");
+    }
+    void Decl(){
+        if(sym.equals("CONSTTK")) {
+            nextsym();
+            ConstDecl();
+        }
+        else if(sym.equals("INTTK")) {
+            nextsym();
+            VarDecl();
+        }
+    }
+    void ConstDecl(){
+        if(sym.equals("INTTK")){
+            nextsym();
+            ConstDef();
+            nextsym();
+            while (sym.equals("COMMA"))
+            {
+                nextsym();
+                ConstDef();
+                nextsym();
+            }
+            if (sym.equals("SEMICN"))
+                writer.write("<ConstDecl>");
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void ConstDef(){
+        if(sym.equals("IDENFR")){
+            nextsym();
+            while (sym.equals("LBRACK")){
+                nextsym();
+                ConstExp();
+                nextsym();
+                if(sym.equals("RBRACK"))
+                    nextsym();
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+            if(sym.equals("ASSIGN")){
+                nextsym();
+                ConstInitVal();
+            }
+            writer.write("<ConsDef>");
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void ConstExp(){
+        AddExp();
+    }
+    void ConstInitVal(){
+        if(sym.equals("INTCON")) {
+            ConstExp();
+            writer.write("<ConstInitVal>");
+        }
+        else if (sym.equals("LBRACE")) {
+            nextsym();
+            ConstInitVal();
+            nextsym();
+            while(sym.equals("COMMA")){
+                nextsym();
+                ConstInitVal();
+                nextsym();
+            }
+            if(sym.equals("RBRACE"))
+                writer.write("<ConstInitVal>");
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void VarDecl(){
+        VarDef();
+        nextsym();
+        while (sym.equals("COMMA")){
+            nextsym();
+            VarDef();
+            nextsym();
+        }
+        if(sym.equals("SEMICN"))
+            writer.write("<VarDecl>");
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void VarDef(){
+        if(sym.equals("IDENFR"))
+        {
+            if(nowsym().equals("SEMICN")) {
+                writer.write("<VarDef>");
+                return;
+            }
+            nextsym();
+            while (sym.equals("LBRACK")) {
+                nextsym();
+                ConstExp();
+                nextsym();
+                if (sym.equals("RBRACK"))
+                    nextsym();
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+            if(sym.equals("ASSIGN")){
+                nextsym();
+                InitVal();
+            }
+            writer.write("<VarDef>");
+
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void InitVal(){
+        if(sym.equals("INTCON")) {
+            Exp();
+            writer.write("<InitVal>");
+        }
+        else if (sym.equals("LBRACE")) {
+            nextsym();
+            InitVal();
+            nextsym();
+            while(sym.equals("COMMA")){
+                nextsym();
+                InitVal();
+                nextsym();
+            }
+            if(sym.equals("RBRACE"))
+                writer.write("<InitVal>");
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void MainFuncDef(){
+        if(sym.equals("INTTK"))
+        {
+            nextsym();
+            if(sym.equals("MAINTK")){
+                nextsym();
+                if(sym.equals("LPARENT")) {
+                    nextsym();
+                    if(sym.equals("RPARENT")) {
+                        nextsym();
+                        Block();
+                        writer.write("<MainFuncDef>");
+                    }
+                }
+            }
+        }
+    }
+    void Block(){
+        if(sym.equals("LBRACE"))
+        {
+            nextsym();
+            while(!sym.equals("RBRACE")){
+                BlockItem();
+                nextsym();
+            }
+            writer.write("<Block>");
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void BlockItem(){
+        if(sym.equals("CONSTTK")||sym.equals("INTTK")){
+            Decl();
+        }
+        else
+            Stmt();
+    }
+    void Stmt(){
+        if(sym.equals("PRINTFTK")){
+            nextsym();
+            Printf();
+        }
+        else if(sym.equals("RETURNTK")){
+            nextsym();
+            Return();
+        }
+        else if(sym.equals("BREAKTK")||sym.equals("CONTINUETK")) {
+            nextsym();
+            BreakAndContinue();
+        }
+        else if(sym.equals("WHILETK")){
+            nextsym();
+            While();
+        }
+        else if(sym.equals("IFTK")){
+            nextsym();
+            If();
+        }
+        else if(sym.equals("LBRACE")){
+            Block();
+        }
+        else {
+            int i =index;
+            boolean flag=false;
+            while(i<ttb.size()&&!ttb.get(i).category.equals("SEMICN")){
+                if (ttb.get(i).category.equals("ASSIGN")) {
+                    flag = true;
+                    break;
+                }
+            }
+            if(flag)
+                Assign();
+            else
+                Exp();
+        }
+    }
+    void Assign(){
+        Lval();
+        nextsym();
+        if(sym.equals("ASSIGN")){
+            nextsym();
+            if(sym.equals("GETINTTK")){
+                nextsym();
+                if(sym.equals("LPARENT")){
+                    nextsym();
+                    if(sym.equals("RPARENT")){
+                        nextsym();
+                        if(sym.equals("SEMICN")){
+                            writer.write("<Stmt>");
+                        }
+                        else
+                            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+                    }
+                    else
+                        error(Thread.currentThread().getStackTrace()[1].getMethodName());
+                }
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+            else {
+                Exp();
+                nextsym();
+                if (sym.equals("SEMICN"))
+                    writer.write("<Stmt>");
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void Lval(){
+        if(sym.equals("IDENFR")){
+            if(nowsym().equals("LBRACK")){
+                nextsym();
+                nextsym();
+                Exp();
+                nextsym();
+                if(sym.equals("RBRACK"))
+                    writer.write("<Lval>");
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+            writer.write("<Lval>");
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void If(){
+        if(sym.equals("LPARENT"))
+        {
+            nextsym();
+            Cond();
+            nextsym();
+            if(sym.equals("RPARENT"))
+            {
+                nextsym();
+                Stmt();
+                if(nowsym().equals("ELSETK")){
+                    nextsym();
+                    nextsym();
+                    Stmt();
+                }
+                writer.write("<Stmt>");
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void While(){
+        if(sym.equals("LPARENT"))
+        {
+            nextsym();
+            Cond();
+            nextsym();
+            if(sym.equals("RPARENT"))
+            {
+                nextsym();
+                Stmt();
+                writer.write("<Stmt>");
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void BreakAndContinue(){
+            if(sym.equals("SEMICN")){
+                writer.write("<Stmt>");
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void Return(){
+        if(sym.equals("SEMICN")){
+            writer.write("<Stmt>");
+        }
+        else {
+            Exp();
+            nextsym();
+            if(sym.equals("SEMICN")) {
+                writer.write("<Stmt>");
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+    }
+    void Printf(){
+        if(sym.equals("LPARENT")){
+            nextsym();
+            if(sym.equals("STRCON")){
+                nextsym();
+                while (sym.equals("COMMA")){
+                    nextsym();
+                    Exp();
+                    nextsym();
+                }
+                if(sym.equals("RPARENT"))
+                {
+                    nextsym();
+                    if (sym.equals("SEMICN"))
+                        writer.write("<Stmt>");
+                    else
+                        error(Thread.currentThread().getStackTrace()[1].getMethodName());
+                }
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void FuncDef(){
+        FuncType();
+        nextsym();
+        if(sym.equals("IDENFR")){
+            nextsym();
+            if(sym.equals("LPARENT")){
+                nextsym();
+                if(sym.equals("INTTK")) {
+                    FuncFParams();
+                    nextsym();
+                }
+                if(sym.equals("RPARENT")) {
+                    nextsym();
+                    Block();
+                    writer.write("<FuncDef>");
+                }
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+        }
+    }
+    void FuncFParams(){
+        FuncFParam();
+        if(nowsym().equals("COMMA")) {
+            nextsym();
+            while (sym.equals("COMMA")) {
+                nextsym();
+                FuncFParam();
+                if (nowsym().equals("COMMA"))
+                    nextsym();
+                else {
+                    break;
+                }
+            }
+        }
+        writer.write("<FuncFParams>");
+    }
+    void FuncFParam(){
+        if(sym.equals("INTTK")){
+            nextsym();
+            if(sym.equals("IDENFR")) {
+
+                if (nowsym().equals("LBRACK")) {
+                    nextsym();
+                    nextsym();
+                    if (sym.equals("RBRACK")) {
+                        if(nowsym().equals("LBRACK")) {
+                            nextsym();
+                            while (sym.equals("LBRACK")) {
+                                nextsym();
+                                ConstExp();
+                                nextsym();
+                            }
+                            if (sym.equals("RBRACK")) {
+                                writer.write("<FuncFParam>");
+                            } else
+                                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+                        }
+                        else
+                            writer.write("<FuncFParam>");
+                    } else
+                        error(Thread.currentThread().getStackTrace()[1].getMethodName());
+                }
+                else{
+                    writer.write("<FuncFParam>");
+                }
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+    void FuncType(){
+        if(sym.equals("VOIDTK")||sym.equals("INTTK"))
+            writer.write("<FuncType>");
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+
+    void PrimaryExp(){
+        if(sym.equals("LPARENT"))
+        {
+            Exp();
+            nextsym();
+            if(sym.equals("RPARENT")){
+                writer.write("<PrimaryExp>");
+            }
+            else
+                error(Thread.currentThread().getStackTrace()[1].getMethodName());
+        } else if (sym.equals("INTCON")) {
+            Number();
+            writer.write("<PrimaryExp>");
+        } else if (sym.equals("IDENFR")) {
+            Lval();
+            writer.write("<PrimaryExp>");
+        }
+    }
+    void Exp(){
+        AddExp();
+        writer.write("<Exp>");
+    }
+    void Cond(){
+        LorExp();
+    }
+    void LorExp(){
+        LAndExp();
+        if(nowsym().equals("OR")) {
+            nextsym();
+            while (sym.equals("OR")){
+                nextsym();
+                LAndExp();
+            }
+        }
+        writer.write("<LorExp>");
+    }
+    void LAndExp(){
+        EqExp();
+        if(nowsym().equals("AND")){
+            nextsym();
+            while (sym.equals("AND")){
+                nextsym();
+                EqExp();
+            }
+        }
+        writer.write("<LAndExp>");
+    }
+    void EqExp(){
+        RelExp();
+        if(nowsym().equals("EQL")||nowsym().equals("NEQ")){
+            nextsym();
+            while (sym.equals("EQL")||sym.equals("NEQ")){
+                nextsym();
+                RelExp();
+            }
+        }
+        writer.write("<EqExp>");
+    }
+    void RelExp(){
+        AddExp();
+        if(nowsym().equals("LSS")||nowsym().equals("LEQ")||nowsym().equals("GRE")||nowsym().equals("GEQ")){
+            nextsym();
+            while (sym.equals("LSS")||sym.equals("LEQ")||sym.equals("GRE")||sym.equals("GEQ")){
+                nextsym();
+                AddExp();
+            }
+        }
+        writer.write("<RelExp>");
+    }
+    void AddExp(){
+        MulExp();
+        if(nowsym().equals("PLUS")||nowsym().equals("MINU")){
+            nextsym();
+            while (sym.equals("PLUS")||sym.equals("MINU")){
+                nextsym();
+                MulExp();
+            }
+        }
+        writer.write("<AddExp>");
+    }
+    void MulExp(){
+        UnaryExp();
+        if(nowsym().equals("MULT")||nowsym().equals("DIV")||nowsym().equals("MOD")){
+            nextsym();
+            while (sym.equals("MULT")||sym.equals("DIV")||sym.equals("MOD")){
+                nextsym();
+                UnaryExp();
+            }
+        }
+        writer.write("<MulExp>");
+    }
+    void UnaryExp(){
+        if(sym.equals("IDENFR")&&nowsym().equals("LPARENT")) {
+            nextsym();
+            if(sym.equals("RPARENT")){
+                writer.write("<UnaryExp>");
+            }
+            else {
+                FuncRParams();
+                if(sym.equals("RPARENT")){
+                    writer.write("<UnaryExp>");
+                }
+                else
+                    error(Thread.currentThread().getStackTrace()[1].getMethodName());
+            }
+        } else if ((sym.equals("IDENFR")&&!nowsym().equals("LPARENT"))||sym.equals("LPARENT")||sym.equals("INTCON")) {
+            PrimaryExp();
+            writer.write("<UnaryExp>");
+        } else if (sym.equals("PLUS")||sym.equals("MINU")||sym.equals("NOT")) {
+            UnaryOp();
+            nextsym();
+            UnaryExp();
+            writer.write("<UnaryExp>");
+        }
+    }
+    void FuncRParams(){
+        Exp();
+        if(nowsym().equals("COMMA")){
+            nextsym();
+            nextsym();
+            Exp();
+            nextsym();
+        }
+    }
+    void Number(){
+        if(sym.equals("INTCON"))
+            writer.write("<Number>");
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+
+    void UnaryOp(){
+        if (sym.equals("PLUS")||sym.equals("MINU")||sym.equals("NOT")) {
+            writer.write("<UnaryOp>");
+        }
+        else
+            error(Thread.currentThread().getStackTrace()[1].getMethodName());
+    }
+}
